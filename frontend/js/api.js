@@ -9,7 +9,9 @@ async function request(method, path, body) {
     headers,
     body: body ? JSON.stringify(body) : undefined
   });
-  const data = await res.json();
+  const text = await res.text();
+  if (!text) throw new Error('服务器无响应（HTTP ' + res.status + '）');
+  const data = JSON.parse(text);
   if (!data.success) throw new Error(data.message || '请求失败');
   return data.data;
 }
