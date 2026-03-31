@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>评论管理 - 管理后台</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <aside class="admin-sidebar">
+    <div class="sidebar-logo">🐱 猫友圈管理</div>
+    <nav class="sidebar-menu">
+      <a href="/admin/index.html">📊 概览</a>
+      <a href="/admin/cats.html">🐱 猫咪审核</a>
+      <a href="/admin/news.html">📰 新闻管理</a>
+      <a href="/admin/comments.html" class="active">💬 评论管理</a>
+      <a href="/index.html">🏠 前台首页</a>
+      <a href="#" onclick="Auth.logout()">🚪 退出登录</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>💬 评论管理</h1>
+    </div>
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>内容</th><th>用户ID</th><th>猫咪ID</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody id="commentTable"><tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
+    </table>
+    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center"></div>
+  </main>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    Auth.requireAdmin();
+    let currentPage = 1;
+
+    async function load(page) {
+      currentPage = page || 1;
+      try {
+        const result = await api.getAllComments(currentPage);
+        const tbody = document.getElementById('commentTable');
+        if (!result.records || result.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">暂无评论</td></tr>';
+        } else {
+          tbody.innerHTML = result.records.map(c => `
+            <tr>
+              <td>${c.id}</td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.content}</td>
+              <td>${c.userId}</td>
+              <td>${c.catId}</td>
+              <td>${c.isBlocked ? '<span class="badge-blocked">已屏蔽</span>' : '<span class="badge-normal">正常</span>'}</td>
+              <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+              <td>${c.isBlocked ? '' : `<button class="btn-block" onclick="blockComment(${c.id})">屏蔽</button>`}</td>
+            </tr>`).join('');
+        }
+        // 简单分页
+        const pag = document.getElementById('pagination');
+        pag.innerHTML = '';
+        if (result.pages > 1) {
+          if (currentPage > 1) {
+            const btn = document.createElement('button');
+            btn.textContent = '上一页';
+            btn.style = 'padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#fff';
+            btn.onclick = () => load(currentPage - 1);
+            pag.appendChild(btn);
+          }
+          const span = document.createElement('span');
+          span.textContent = `第 ${currentPage}/${result.pages} 页`;
+          span.style = 'color:#64748b;font-size:13px;line-height:2';
+          pag.appendChild(span);
+          if (currentPage < result.pages) {
+            const btn = document.createElement('button');
+            btn.textContent = '下一页';
+            btn.style = 'padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#fff';
+            btn.onclick = () => load(currentPage + 1);
+            pag.appendChild(btn);
+          }
+        }
+      } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    async function blockComment(id) {
+      try {
+        await api.blockComment(id);
+        showToast('已屏蔽该评论');
+        load(currentPage);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    function showToast(msg, type='success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    load(1);
+  </script>
+</body>
+</html>

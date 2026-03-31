@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 猫友圈</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="main-nav"></div>
+  <div class="container">
+    <div class="form-card">
+      <h2>🐱 登录猫友圈</h2>
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="username" placeholder="请输入用户名">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')login()">
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:8px" onclick="login()">登录</button>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:#78716c">
+        还没有账号？<a href="/register.html" style="color:#f97316">立即注册</a>
+      </p>
+    </div>
+  </div>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      if (!username || !password) return showToast('请填写用户名和密码', 'error');
+      try {
+        const data = await api.login(username, password);
+        Auth.save(data.token, { nickname: data.nickname, role: data.role });
+        showToast('登录成功');
+        setTimeout(() => window.location.href = data.role === 'ADMIN' ? '/admin/index.html' : '/index.html', 800);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

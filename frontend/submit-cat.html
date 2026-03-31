@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>提交猫咪 - 猫友圈</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="main-nav"></div>
+  <div class="container">
+    <div class="form-card" style="max-width:560px">
+      <h2>🐱 提交猫咪信息</h2>
+      <p style="color:#78716c;font-size:13px;margin-bottom:20px">提交后需等待管理员审核，审核通过后将展示在首页。</p>
+      <div class="form-group">
+        <label>猫咪姓名 *</label>
+        <input type="text" id="name" placeholder="给猫咪起个名字">
+      </div>
+      <div class="form-group">
+        <label>性别</label>
+        <select id="gender">
+          <option value="">不详</option>
+          <option value="MALE">公猫</option>
+          <option value="FEMALE">母猫</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>年龄（岁）</label>
+        <input type="number" id="age" min="0" max="30" placeholder="大概年龄">
+      </div>
+      <div class="form-group">
+        <label>品种</label>
+        <input type="text" id="breed" placeholder="如：橘猫、波斯猫、英短...">
+      </div>
+      <div class="form-group">
+        <label>性格描述</label>
+        <textarea id="personality" rows="3" placeholder="描述一下这只猫咪的性格..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>头像图片 URL</label>
+        <input type="text" id="avatarUrl" placeholder="填写图片链接（可选）">
+      </div>
+      <div class="form-group">
+        <label>或上传图片</label>
+        <input type="file" id="avatarFile" accept="image/*" onchange="previewUpload()">
+        <div id="previewBox" style="margin-top:8px;display:none">
+          <img id="previewImg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #fed7aa" alt="">
+        </div>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:8px" onclick="submit()">提交审核</button>
+    </div>
+  </div>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    Auth.requireLogin();
+
+    function previewUpload() {
+      const file = document.getElementById('avatarFile').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          document.getElementById('previewImg').src = e.target.result;
+          document.getElementById('previewBox').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function submit() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) return showToast('猫咪姓名必填', 'error');
+
+      let avatarUrl = document.getElementById('avatarUrl').value.trim();
+      const file = document.getElementById('avatarFile').files[0];
+      if (file && !avatarUrl) {
+        try {
+          avatarUrl = await api.uploadImage(file);
+        } catch(e) { return showToast('图片上传失败：' + e.message, 'error'); }
+      }
+
+      const data = {
+        name,
+        gender: document.getElementById('gender').value || null,
+        age: document.getElementById('age').value ? parseInt(document.getElementById('age').value) : null,
+        breed: document.getElementById('breed').value.trim() || null,
+        personality: document.getElementById('personality').value.trim() || null,
+        avatarUrl: avatarUrl || null
+      };
+
+      try {
+        await api.submitCat(data);
+        showToast('提交成功！等待管理员审核');
+        setTimeout(() => window.location.href = '/index.html', 1200);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

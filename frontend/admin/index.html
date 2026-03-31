@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - 猫友圈</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <aside class="admin-sidebar">
+    <div class="sidebar-logo">🐱 猫友圈管理</div>
+    <nav class="sidebar-menu">
+      <a href="/admin/index.html" class="active">📊 概览</a>
+      <a href="/admin/cats.html">🐱 猫咪审核</a>
+      <a href="/admin/news.html">📰 新闻管理</a>
+      <a href="/admin/comments.html">💬 评论管理</a>
+      <a href="/index.html">🏠 前台首页</a>
+      <a href="#" onclick="Auth.logout()">🚪 退出登录</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>📊 管理概览</h1>
+      <div class="admin-user" id="adminUser"></div>
+    </div>
+    <div class="stat-cards" id="statCards">
+      <div class="stat-card"><div class="label">待审核猫咪</div><div class="value" id="pendingCount">-</div></div>
+      <div class="stat-card"><div class="label">快速入口</div><div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        <a href="/admin/cats.html" style="color:#38bdf8;font-size:14px;text-decoration:none">→ 猫咪审核</a>
+        <a href="/admin/news.html" style="color:#38bdf8;font-size:14px;text-decoration:none">→ 发布新闻</a>
+        <a href="/admin/comments.html" style="color:#38bdf8;font-size:14px;text-decoration:none">→ 评论管理</a>
+      </div></div>
+    </div>
+  </main>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    Auth.requireAdmin();
+    const user = Auth.getUser();
+    document.getElementById('adminUser').textContent = 'Hi, ' + (user && user.nickname || 'Admin');
+
+    async function loadStats() {
+      try {
+        const result = await api.getPendingCats(1);
+        document.getElementById('pendingCount').textContent = result.total;
+      } catch(e) {}
+    }
+    loadStats();
+
+    function showToast(msg, type='success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新闻管理 - 管理后台</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <aside class="admin-sidebar">
+    <div class="sidebar-logo">🐱 猫友圈管理</div>
+    <nav class="sidebar-menu">
+      <a href="/admin/index.html">📊 概览</a>
+      <a href="/admin/cats.html">🐱 猫咪审核</a>
+      <a href="/admin/news.html" class="active">📰 新闻管理</a>
+      <a href="/admin/comments.html">💬 评论管理</a>
+      <a href="/index.html">🏠 前台首页</a>
+      <a href="#" onclick="Auth.logout()">🚪 退出登录</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>📰 新闻管理</h1>
+      <button class="btn-add" onclick="openModal()">+ 发布新闻</button>
+    </div>
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>标题</th><th>分类</th><th>发布时间</th><th>操作</th></tr></thead>
+      <tbody id="newsTable"><tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
+    </table>
+  </main>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">发布新闻</h3>
+      <input type="hidden" id="editId">
+      <div class="form-group"><label>标题 *</label><input type="text" id="newsTitle" placeholder="新闻标题"></div>
+      <div class="form-group">
+        <label>分类 *</label>
+        <select id="newsCategory">
+          <option value="KNOWLEDGE">科普知识</option>
+          <option value="ANNOUNCEMENT">公告通知</option>
+          <option value="MIGRATION">迁入迁出</option>
+        </select>
+      </div>
+      <div class="form-group"><label>封面图URL</label><input type="text" id="newsCover" placeholder="可选"></div>
+      <div class="form-group"><label>内容 *</label><textarea id="newsContent" rows="6" placeholder="新闻内容..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-add" onclick="saveNews()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    Auth.requireAdmin();
+    const categoryMap = { KNOWLEDGE: '科普', ANNOUNCEMENT: '公告', MIGRATION: '迁入迁出' };
+
+    async function load() {
+      try {
+        const result = await api.getNews({ page: 1, size: 50 });
+        const tbody = document.getElementById('newsTable');
+        if (!result.records || result.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:24px">暂无新闻</td></tr>';
+        } else {
+          tbody.innerHTML = result.records.map(n => `
+            <tr>
+              <td>${n.id}</td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.title}</td>
+              <td>${categoryMap[n.category] || n.category}</td>
+              <td>${new Date(n.createdAt).toLocaleDateString()}</td>
+              <td>
+                <button class="btn-edit" onclick='editNews(${JSON.stringify(n)})'>编辑</button>
+                <button class="btn-delete" onclick="deleteNews(${n.id})">删除</button>
+              </td>
+            </tr>`).join('');
+        }
+      } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    function openModal() {
+      document.getElementById('modalTitle').textContent = '发布新闻';
+      document.getElementById('editId').value = '';
+      document.getElementById('newsTitle').value = '';
+      document.getElementById('newsCategory').value = 'KNOWLEDGE';
+      document.getElementById('newsCover').value = '';
+      document.getElementById('newsContent').value = '';
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function editNews(n) {
+      document.getElementById('modalTitle').textContent = '编辑新闻';
+      document.getElementById('editId').value = n.id;
+      document.getElementById('newsTitle').value = n.title;
+      document.getElementById('newsCategory').value = n.category;
+      document.getElementById('newsCover').value = n.coverUrl || '';
+      document.getElementById('newsContent').value = n.content;
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('show');
+    }
+
+    async function saveNews() {
+      const title = document.getElementById('newsTitle').value.trim();
+      const content = document.getElementById('newsContent').value.trim();
+      const category = document.getElementById('newsCategory').value;
+      const coverUrl = document.getElementById('newsCover').value.trim();
+      const editId = document.getElementById('editId').value;
+      if (!title || !content) return showToast('标题和内容必填', 'error');
+      try {
+        if (editId) {
+          await api.updateNews(editId, { title, content, category, coverUrl });
+          showToast('更新成功');
+        } else {
+          await api.createNews({ title, content, category, coverUrl });
+          showToast('发布成功');
+        }
+        closeModal();
+        load();
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function deleteNews(id) {
+      if (!confirm('确认删除这篇新闻？')) return;
+      try {
+        await api.deleteNews(id);
+        showToast('已删除');
+        load();
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    function showToast(msg, type='success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    load();
+  </script>
+</body>
+</html>

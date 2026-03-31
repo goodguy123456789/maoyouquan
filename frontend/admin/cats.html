@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猫咪审核 - 管理后台</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <aside class="admin-sidebar">
+    <div class="sidebar-logo">🐱 猫友圈管理</div>
+    <nav class="sidebar-menu">
+      <a href="/admin/index.html">📊 概览</a>
+      <a href="/admin/cats.html" class="active">🐱 猫咪审核</a>
+      <a href="/admin/news.html">📰 新闻管理</a>
+      <a href="/admin/comments.html">💬 评论管理</a>
+      <a href="/index.html">🏠 前台首页</a>
+      <a href="#" onclick="Auth.logout()">🚪 退出登录</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>🐱 待审核猫咪</h1>
+      <div class="admin-user" id="adminUser"></div>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>姓名</th><th>性别</th><th>品种</th><th>提交时间</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="catTable"><tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
+    </table>
+    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center"></div>
+  </main>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    Auth.requireAdmin();
+    document.getElementById('adminUser').textContent = 'Hi, ' + (Auth.getUser()?.nickname || 'Admin');
+
+    async function load(page) {
+      try {
+        const result = await api.getPendingCats(page || 1);
+        const tbody = document.getElementById('catTable');
+        if (!result.records || result.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">暂无待审核猫咪 🎉</td></tr>';
+        } else {
+          tbody.innerHTML = result.records.map(c => `
+            <tr>
+              <td>${c.id}</td>
+              <td>${c.name}</td>
+              <td>${c.gender === 'MALE' ? '公' : c.gender === 'FEMALE' ? '母' : '-'}</td>
+              <td>${c.breed || '-'}</td>
+              <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+              <td>
+                <button class="btn-approve" onclick="review(${c.id},'APPROVED')">✓ 通过</button>
+                <button class="btn-reject" onclick="review(${c.id},'REJECTED')">✗ 拒绝</button>
+              </td>
+            </tr>`).join('');
+        }
+      } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    async function review(id, status) {
+      try {
+        await api.updateCatStatus(id, status);
+        showToast(status === 'APPROVED' ? '已通过审核' : '已拒绝');
+        load(1);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    function showToast(msg, type='success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    load(1);
+  </script>
+</body>
+</html>

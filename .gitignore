@@ -1,0 +1,26 @@
+# Maven 编译产物
+backend/target/
+
+# 用户上传的图片文件
+backend/uploads/
+
+# AI 工具配置目录
+.claude/
+.superpowers/
+
+# 日志文件
+*.log
+logs/
+
+# IDE 配置
+.idea/
+*.iml
+.vscode/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境配置（如有）
+.env
+.env.local

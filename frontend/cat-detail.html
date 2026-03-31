@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猫咪详情 - 猫友圈</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="main-nav"></div>
+  <div class="container">
+    <div class="cat-detail" id="catDetail"><p class="empty">加载中...</p></div>
+    <div class="comment-section">
+      <h3>💬 评论区</h3>
+      <div class="comment-input" id="commentInput" style="display:none">
+        <textarea id="commentText" placeholder="写下你对这只猫咪的评论..."></textarea>
+        <button class="btn-primary" onclick="submitComment()">发送</button>
+      </div>
+      <p id="loginTip" style="color:#a8a29e;font-size:14px;margin-bottom:16px">
+        <a href="/login.html" style="color:#f97316">登录</a> 后发表评论
+      </p>
+      <div id="commentList"></div>
+    </div>
+  </div>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    const catId = new URLSearchParams(location.search).get('id');
+    let liked = false;
+
+    async function load() {
+      try {
+        const cat = await api.getCat(catId);
+        document.title = cat.name + ' - 猫友圈';
+        document.getElementById('catDetail').innerHTML = `
+          <div class="cat-detail-header">
+            <div class="cat-detail-avatar">
+              ${cat.avatarUrl ? `<img src="${cat.avatarUrl}" alt="${cat.name}">` : '🐱'}
+            </div>
+            <div class="cat-info">
+              <h1>${cat.name}</h1>
+              <div class="meta">
+                ${cat.gender ? `<span class="cat-tag">${cat.gender === 'MALE' ? '🐱 公' : '🐱 母'}</span>` : ''}
+                ${cat.age != null ? `<span class="cat-tag">${cat.age}岁</span>` : ''}
+                ${cat.breed ? `<span class="cat-tag">${cat.breed}</span>` : ''}
+              </div>
+              ${cat.personality ? `<p style="color:#78716c;font-size:14px;margin-bottom:14px">${cat.personality}</p>` : ''}
+              <button class="like-btn ${liked ? 'liked' : ''}" id="likeBtn" onclick="toggleLike()">
+                ❤️ <span id="likeCount">${cat.likeCount}</span> 赞
+              </button>
+              <div style="color:#a8a29e;font-size:12px;margin-top:8px">记录时间：${new Date(cat.createdAt).toLocaleDateString()}</div>
+            </div>
+          </div>`;
+        if (Auth.isLoggedIn()) {
+          document.getElementById('commentInput').style.display = 'flex';
+          document.getElementById('loginTip').style.display = 'none';
+        }
+        loadComments();
+      } catch(e) {
+        document.getElementById('catDetail').innerHTML = '<p class="empty">猫咪不存在或已下架</p>';
+      }
+    }
+
+    async function toggleLike() {
+      if (!Auth.isLoggedIn()) return window.location.href = '/login.html';
+      try {
+        const res = await api.toggleLike(catId);
+        liked = res.liked;
+        document.getElementById('likeCount').textContent = res.likeCount;
+        document.getElementById('likeBtn').className = 'like-btn' + (liked ? ' liked' : '');
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function loadComments() {
+      try {
+        const comments = await api.getComments(catId);
+        document.getElementById('commentList').innerHTML = comments.length
+          ? comments.map(c => `
+              <div class="comment-item">
+                <div class="comment-author">用户 #${c.userId}</div>
+                <div class="comment-content">${c.content}</div>
+                <div class="comment-time">${new Date(c.createdAt).toLocaleString()}</div>
+              </div>`).join('')
+          : '<p style="color:#a8a29e;font-size:14px">暂无评论，快来抢沙发！</p>';
+      } catch(e) {}
+    }
+
+    async function submitComment() {
+      const content = document.getElementById('commentText').value.trim();
+      if (!content) return showToast('评论不能为空', 'error');
+      try {
+        await api.addComment(catId, content);
+        document.getElementById('commentText').value = '';
+        showToast('评论成功');
+        loadComments();
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    load();
+  </script>
+</body>
+</html>

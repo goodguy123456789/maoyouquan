@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猫友圈 - 首页</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="main-nav"></div>
+  <div class="container">
+    <div class="search-bar">
+      <input type="text" id="nameInput" placeholder="🔍 搜索猫咪姓名...">
+      <input type="text" id="breedInput" placeholder="品种筛选...">
+      <select id="sortSelect">
+        <option value="latest">最新上架</option>
+        <option value="likes">点赞热度</option>
+      </select>
+      <button class="btn-primary" onclick="loadCats(1)">搜索</button>
+    </div>
+    <div class="cat-grid" id="catGrid"><p class="empty">加载中...</p></div>
+    <div id="pagination"></div>
+  </div>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    async function loadCats(page) {
+      const params = {
+        page, size: 12,
+        name: document.getElementById('nameInput').value,
+        breed: document.getElementById('breedInput').value,
+        sort: document.getElementById('sortSelect').value
+      };
+      try {
+        const result = await api.getCats(params);
+        const grid = document.getElementById('catGrid');
+        if (!result.records || result.records.length === 0) {
+          grid.innerHTML = '<p class="empty">暂无猫咪，快来提交第一只吧！🐱</p>';
+        } else {
+          grid.innerHTML = result.records.map(cat => `
+            <a class="cat-card" href="/cat-detail.html?id=${cat.id}">
+              <div class="cat-avatar">
+                ${cat.avatarUrl ? `<img src="${cat.avatarUrl}" alt="${cat.name}">` : '🐱'}
+              </div>
+              <div class="cat-name">${cat.name}</div>
+              <div class="cat-breed">${cat.breed || '未知品种'}</div>
+            </a>`).join('');
+        }
+        renderPagination(document.getElementById('pagination'), result.current, result.pages, 'loadCats');
+      } catch(e) {
+        document.getElementById('catGrid').innerHTML = '<p class="empty">加载失败，请刷新重试</p>';
+      }
+    }
+    loadCats(1);
+  </script>
+</body>
+</html>
