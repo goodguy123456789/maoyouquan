@@ -5,6 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>注册 - 猫友圈</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .password-wrapper {
+      position: relative;
+    }
+    .password-wrapper input {
+      padding-right: 40px;
+    }
+    .toggle-pw {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 16px;
+      user-select: none;
+      color: #a8a29e;
+    }
+    .toggle-pw:hover {
+      color: #f97316;
+    }
+  </style>
 </head>
 <body>
   <div id="main-nav"></div>
@@ -17,7 +38,17 @@
       </div>
       <div class="form-group">
         <label>密码 *</label>
-        <input type="password" id="password" placeholder="至少6位">
+        <div class="password-wrapper">
+          <input type="password" id="password" placeholder="至少6位">
+          <span class="toggle-pw" onclick="togglePw('password', this)">👁</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>确认密码 *</label>
+        <div class="password-wrapper">
+          <input type="password" id="confirmPassword" placeholder="再次输入密码">
+          <span class="toggle-pw" onclick="togglePw('confirmPassword', this)">👁</span>
+        </div>
       </div>
       <div class="form-group">
         <label>昵称</label>
@@ -37,16 +68,31 @@
   <script src="/js/api.js"></script>
   <script src="/js/common.js"></script>
   <script>
+    function togglePw(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁';
+      }
+    }
+
     async function register() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
       const nickname = document.getElementById('nickname').value.trim();
       const email = document.getElementById('email').value.trim();
       if (!username || !password) return showToast('用户名和密码必填', 'error');
       if (username.length < 3) return showToast('用户名至少3个字符', 'error');
       if (password.length < 6) return showToast('密码至少6位', 'error');
+      if (!confirmPassword) return showToast('请再次输入密码', 'error');
+      if (password !== confirmPassword) return showToast('两次输入的密码不一致', 'error');
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast('邮箱格式不正确', 'error');
       try {
-        await api.register({ username, password, nickname, email });
+        await api.register({ username, password, confirmPassword, nickname, email });
         showToast('注册成功，请登录');
         setTimeout(() => window.location.href = '/login.html', 800);
       } catch(e) { showToast(e.message, 'error'); }

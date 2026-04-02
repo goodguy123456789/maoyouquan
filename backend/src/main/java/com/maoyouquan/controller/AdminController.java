@@ -79,4 +79,31 @@ public class AdminController {
                 new QueryWrapper<Comment>().orderByDesc("created_at"));
         return R.ok(result);
     }
+
+    @GetMapping("/users")
+    public R<?> allUsers(@RequestParam(defaultValue = "1") int page,
+                          @RequestParam(defaultValue = "20") int size) {
+        Page<User> result = userMapper.selectPage(new Page<>(page, size),
+                new QueryWrapper<User>().orderByAsc("created_at"));
+        result.getRecords().forEach(u -> u.setPasswordHash(null));
+        return R.ok(result);
+    }
+
+    @PutMapping("/users/{id}/role")
+    public R<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        User user = new User();
+        user.setId(id);
+        user.setRole(body.get("role"));
+        userMapper.updateById(user);
+        return R.ok();
+    }
+
+    @PutMapping("/users/{id}/status")
+    public R<?> updateUserStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        User user = new User();
+        user.setId(id);
+        user.setIsActive(body.get("isActive"));
+        userMapper.updateById(user);
+        return R.ok();
+    }
 }

@@ -51,4 +51,7 @@ const api = {
   createNews: (data) => request('POST', '/admin/news', data),
   updateNews: (id, data) => request('PUT', `/admin/news/${id}`, data),
   deleteNews: (id) => request('DELETE', `/admin/news/${id}`),
+  getUsers: (page) => request('GET', `/admin/users?page=${page || 1}&size=20`),
+  updateUserRole: (id, role) => request('PUT', `/admin/users/${id}/role`, { role }),
+  updateUserStatus: (id, isActive) => request('PUT', `/admin/users/${id}/status`, { isActive }),
 };

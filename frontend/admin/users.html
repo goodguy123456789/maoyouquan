@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理 - 管理后台</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <aside class="admin-sidebar">
+    <div class="sidebar-logo">🐱 猫友圈管理</div>
+    <nav class="sidebar-menu">
+      <a href="/admin/index.html">📊 概览</a>
+      <a href="/admin/cats.html">🐱 猫咪审核</a>
+      <a href="/admin/news.html">📰 新闻管理</a>
+      <a href="/admin/comments.html">💬 评论管理</a>
+      <a href="/admin/users.html" class="active">👥 用户管理</a>
+      <a href="/index.html">🏠 前台首页</a>
+      <a href="#" onclick="Auth.logout()">🚪 退出登录</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-header">
+      <h1>👥 用户管理</h1>
+      <div class="admin-user" id="adminUser"></div>
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>用户名</th><th>昵称</th><th>邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="userTable"><tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
+    </table>
+    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center"></div>
+  </main>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    Auth.requireAdmin();
+    document.getElementById('adminUser').textContent = 'Hi, ' + (Auth.getUser()?.nickname || 'Admin');
+
+    let currentPage = 1;
+
+    async function load(page) {
+      currentPage = page || 1;
+      try {
+        const result = await api.getUsers(currentPage);
+        const tbody = document.getElementById('userTable');
+        if (!result.records || result.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:24px">暂无用户</td></tr>';
+          return;
+        }
+        tbody.innerHTML = result.records.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${u.username}</td>
+            <td>${u.nickname || '-'}</td>
+            <td>${u.email || '-'}</td>
+            <td>
+              <span style="color:${u.role === 'ADMIN' ? '#f97316' : '#38bdf8'}">${u.role === 'ADMIN' ? '管理员' : '普通用户'}</span>
+            </td>
+            <td>
+              <span style="color:${u.isActive === 1 ? '#4ade80' : '#f87171'}">${u.isActive === 1 ? '正常' : '已禁用'}</span>
+            </td>
+            <td>${new Date(u.createdAt).toLocaleDateString()}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap">
+              ${u.role === 'ADMIN'
+                ? `<button class="btn-reject" onclick="setRole(${u.id},'USER')">降为用户</button>`
+                : `<button class="btn-approve" onclick="setRole(${u.id},'ADMIN')">设为管理员</button>`}
+              ${u.isActive === 1
+                ? `<button class="btn-reject" onclick="setStatus(${u.id},0)">禁用</button>`
+                : `<button class="btn-approve" onclick="setStatus(${u.id},1)">启用</button>`}
+            </td>
+          </tr>`).join('');
+
+        renderPagination(result.total, result.size);
+      } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    function renderPagination(total, size) {
+      const totalPages = Math.ceil(total / size);
+      const pg = document.getElementById('pagination');
+      pg.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = i === currentPage ? 'btn-approve' : 'btn-reject';
+        btn.style.minWidth = '36px';
+        btn.onclick = () => load(i);
+        pg.appendChild(btn);
+      }
+    }
+
+    async function setRole(id, role) {
+      try {
+        await api.updateUserRole(id, role);
+        showToast(role === 'ADMIN' ? '已设为管理员' : '已降为普通用户');
+        load(currentPage);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function setStatus(id, isActive) {
+      try {
+        await api.updateUserStatus(id, isActive);
+        showToast(isActive === 1 ? '已启用用户' : '已禁用用户');
+        load(currentPage);
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    function showToast(msg, type='success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    load(1);
+  </script>
+</body>
+</html>

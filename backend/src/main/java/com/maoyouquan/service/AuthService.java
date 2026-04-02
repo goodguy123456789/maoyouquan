@@ -23,6 +23,10 @@ public class AuthService {
         if (userMapper.selectOne(new QueryWrapper<User>().eq("username", req.getUsername())) != null) {
             throw new RuntimeException("用户名已存在");
         }
+        if (req.getEmail() != null && !req.getEmail().isBlank()
+                && userMapper.selectOne(new QueryWrapper<User>().eq("email", req.getEmail())) != null) {
+            throw new RuntimeException("该邮箱已被注册");
+        }
         User user = new User();
         user.setUsername(req.getUsername());
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
