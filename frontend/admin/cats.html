@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>猫咪审核 - 管理后台</title>
   <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .tab-bar { display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #334155; }
+    .tab-btn { padding:8px 20px; background:none; border:none; color:#94a3b8; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; }
+    .tab-btn.active { color:#38bdf8; border-bottom-color:#38bdf8; font-weight:600; }
+    .tab-btn:hover:not(.active) { color:#cbd5e1; }
+    .search-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+    .search-bar input, .search-bar select { padding:6px 10px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; font-size:13px; }
+    .search-bar input { width:130px; }
+    .search-bar select { width:140px; }
+  </style>
 </head>
 <body>
   <aside class="admin-sidebar">
@@ -21,18 +31,55 @@
   </aside>
   <main class="admin-main">
     <div class="admin-header">
-      <h1>🐱 待审核猫咪</h1>
+      <h1>🐱 猫咪审核</h1>
       <div class="admin-user" id="adminUser"></div>
     </div>
+
+    <!-- 状态选项卡 -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('PENDING', this)">待审核</button>
+      <button class="tab-btn" onclick="switchTab('APPROVED', this)">已通过</button>
+      <button class="tab-btn" onclick="switchTab('REJECTED', this)">已拒绝</button>
+    </div>
+
+    <!-- 条件查询 -->
+    <div class="search-bar">
+      <input type="text" id="searchName" placeholder="按名字查询">
+      <select id="searchBreed">
+        <option value="">全部品种</option>
+        <option>中华田园猫</option>
+        <option>英国短毛猫</option>
+        <option>美国短毛猫</option>
+        <option>布偶猫</option>
+        <option>暹罗猫</option>
+        <option>波斯猫</option>
+        <option>缅因猫</option>
+        <option>苏格兰折耳猫</option>
+        <option>孟加拉猫</option>
+        <option>挪威森林猫</option>
+        <option>俄罗斯蓝猫</option>
+        <option>无毛猫</option>
+        <option>阿比西尼亚猫</option>
+        <option>其他</option>
+      </select>
+      <select id="searchGender">
+        <option value="">全部性别</option>
+        <option value="MALE">公</option>
+        <option value="FEMALE">母</option>
+      </select>
+      <button class="btn-approve" onclick="search()" style="padding:6px 16px">查询</button>
+      <button class="btn-reject" onclick="resetSearch()" style="padding:6px 16px">重置</button>
+    </div>
+
     <table class="admin-table">
       <thead>
         <tr>
-          <th>ID</th><th>姓名</th><th>性别</th><th>品种</th><th>提交时间</th><th>操作</th>
+          <th>ID</th><th>姓名</th><th>性别</th><th>品种</th><th>提交时间</th><th>状态</th><th>操作</th>
         </tr>
       </thead>
-      <tbody id="catTable"><tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
+      <tbody id="catTable"><tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
     </table>
-    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center"></div>
+    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap"></div>
   </main>
   <script src="/js/auth.js"></script>
   <script src="/js/api.js"></script>
@@ -40,12 +87,44 @@
     Auth.requireAdmin();
     document.getElementById('adminUser').textContent = 'Hi, ' + (Auth.getUser()?.nickname || 'Admin');
 
+    let currentPage = 1;
+    let currentStatus = 'PENDING';
+    let searchName = '';
+    let searchBreed = '';
+    let searchGender = '';
+
+    const statusLabel = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已拒绝' };
+    const statusColor = { PENDING: '#f59e0b', APPROVED: '#4ade80', REJECTED: '#f87171' };
+
+    function switchTab(status, btn) {
+      currentStatus = status;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      load(1);
+    }
+
+    function search() {
+      searchName = document.getElementById('searchName').value.trim();
+      searchBreed = document.getElementById('searchBreed').value;
+      searchGender = document.getElementById('searchGender').value;
+      load(1);
+    }
+
+    function resetSearch() {
+      document.getElementById('searchName').value = '';
+      document.getElementById('searchBreed').value = '';
+      document.getElementById('searchGender').value = '';
+      searchName = ''; searchBreed = ''; searchGender = '';
+      load(1);
+    }
+
     async function load(page) {
+      currentPage = page || 1;
       try {
-        const result = await api.getPendingCats(page || 1);
+        const result = await api.getCatsAdmin(currentPage, currentStatus, searchName, searchBreed, searchGender);
         const tbody = document.getElementById('catTable');
         if (!result.records || result.records.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">暂无待审核猫咪 🎉</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">暂无数据</td></tr>';
         } else {
           tbody.innerHTML = result.records.map(c => `
             <tr>
@@ -54,20 +133,68 @@
               <td>${c.gender === 'MALE' ? '公' : c.gender === 'FEMALE' ? '母' : '-'}</td>
               <td>${c.breed || '-'}</td>
               <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+              <td><span style="color:${statusColor[c.status]||'#94a3b8'}">${statusLabel[c.status]||c.status}</span></td>
               <td>
-                <button class="btn-approve" onclick="review(${c.id},'APPROVED')">✓ 通过</button>
-                <button class="btn-reject" onclick="review(${c.id},'REJECTED')">✗ 拒绝</button>
+                ${c.status !== 'APPROVED' ? `<button class="btn-approve" onclick="review(${c.id},'APPROVED')">✓ 通过</button>` : ''}
+                ${c.status !== 'REJECTED' ? `<button class="btn-reject" onclick="review(${c.id},'REJECTED')">✗ 拒绝</button>` : ''}
               </td>
             </tr>`).join('');
         }
+        renderPagination(result.total, result.size);
       } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    function renderPagination(total, size) {
+      const totalPages = Math.ceil(total / size);
+      const pg = document.getElementById('pagination');
+      pg.innerHTML = '';
+      if (totalPages <= 1) return;
+
+      const delta = 2;
+      const pages = new Set([1, totalPages]);
+      for (let i = currentPage - delta; i <= currentPage + delta; i++) {
+        if (i >= 1 && i <= totalPages) pages.add(i);
+      }
+      const sorted = [...pages].sort((a, b) => a - b);
+
+      const addBtn = (label, page, active, disabled) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `padding:6px 12px;border-radius:6px;cursor:${disabled?'default':'pointer'};font-size:13px;min-width:36px;border:1px solid ${active?'#38bdf8':'#334155'};background:${active?'#38bdf8':'#1e293b'};color:${active?'#0f172a':disabled?'#475569':'#e2e8f0'};`;
+        if (page && !disabled) btn.onclick = () => load(page);
+        else btn.disabled = true;
+        pg.appendChild(btn);
+      };
+
+      addBtn('«', 1, false, currentPage === 1);
+      addBtn('‹', currentPage - 1, false, currentPage === 1);
+
+      let prev = 0;
+      for (const p of sorted) {
+        if (p - prev > 1) {
+          const span = document.createElement('span');
+          span.textContent = '…';
+          span.style.cssText = 'color:#475569;padding:0 4px;line-height:2';
+          pg.appendChild(span);
+        }
+        addBtn(p, p, p === currentPage, false);
+        prev = p;
+      }
+
+      addBtn('›', currentPage + 1, false, currentPage === totalPages);
+      addBtn('»', totalPages, false, currentPage === totalPages);
+
+      const info = document.createElement('span');
+      info.textContent = `${currentPage}/${totalPages} 页，共 ${total} 条`;
+      info.style.cssText = 'color:#64748b;font-size:12px;margin-left:8px;white-space:nowrap';
+      pg.appendChild(info);
     }
 
     async function review(id, status) {
       try {
         await api.updateCatStatus(id, status);
         showToast(status === 'APPROVED' ? '已通过审核' : '已拒绝');
-        load(1);
+        load(currentPage);
       } catch(e) { showToast(e.message, 'error'); }
     }
 

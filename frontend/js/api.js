@@ -44,14 +44,37 @@ const api = {
     return data.data.url;
   },
 
-  getPendingCats: (page) => request('GET', `/admin/cats/pending?page=${page || 1}&size=10`),
+  getCatsAdmin: (page, status, name, breed, gender) => {
+    const params = new URLSearchParams({ page: page || 1, size: 10 });
+    if (status) params.set('status', status);
+    if (name) params.set('name', name);
+    if (breed) params.set('breed', breed);
+    if (gender) params.set('gender', gender);
+    return request('GET', `/admin/cats/pending?${params}`);
+  },
   updateCatStatus: (id, status) => request('PUT', `/admin/cats/${id}/status`, { status }),
   blockComment: (id) => request('PUT', `/admin/comments/${id}/block`),
-  getAllComments: (page) => request('GET', `/admin/comments?page=${page || 1}&size=20`),
+  getAllComments: (page, content, isBlocked) => {
+    const params = new URLSearchParams({ page: page || 1, size: 20 });
+    if (content) params.set('content', content);
+    if (isBlocked !== undefined && isBlocked !== '') params.set('isBlocked', isBlocked);
+    return request('GET', `/admin/comments?${params}`);
+  },
+  getAdminNews: (page, title, category) => {
+    const params = new URLSearchParams({ page: page || 1, size: 10 });
+    if (title) params.set('title', title);
+    if (category) params.set('category', category);
+    return request('GET', `/admin/news?${params}`);
+  },
   createNews: (data) => request('POST', '/admin/news', data),
   updateNews: (id, data) => request('PUT', `/admin/news/${id}`, data),
   deleteNews: (id) => request('DELETE', `/admin/news/${id}`),
-  getUsers: (page) => request('GET', `/admin/users?page=${page || 1}&size=20`),
+  getUsers: (page, id, username) => {
+    const params = new URLSearchParams({ page: page || 1, size: 20 });
+    if (id) params.set('id', id);
+    if (username) params.set('username', username);
+    return request('GET', `/admin/users?${params}`);
+  },
   updateUserRole: (id, role) => request('PUT', `/admin/users/${id}/role`, { role }),
   updateUserStatus: (id, isActive) => request('PUT', `/admin/users/${id}/status`, { isActive }),
 };

@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>评论管理 - 管理后台</title>
   <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .search-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+    .search-bar input, .search-bar select { padding:6px 10px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; font-size:13px; }
+    .search-bar input { width:200px; }
+    .search-bar select { width:130px; }
+  </style>
 </head>
 <body>
   <aside class="admin-sidebar">
@@ -23,22 +29,52 @@
     <div class="admin-header">
       <h1>💬 评论管理</h1>
     </div>
+
+    <!-- 条件查询 -->
+    <div class="search-bar">
+      <input type="text" id="searchContent" placeholder="按内容查询">
+      <select id="searchStatus">
+        <option value="">全部状态</option>
+        <option value="0">正常</option>
+        <option value="1">已屏蔽</option>
+      </select>
+      <button class="btn-approve" onclick="search()" style="padding:6px 16px">查询</button>
+      <button class="btn-reject" onclick="resetSearch()" style="padding:6px 16px">重置</button>
+    </div>
+
     <table class="admin-table">
       <thead><tr><th>ID</th><th>内容</th><th>用户ID</th><th>猫咪ID</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
       <tbody id="commentTable"><tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">加载中...</td></tr></tbody>
     </table>
-    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center"></div>
+    <div id="pagination" style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap"></div>
   </main>
   <script src="/js/auth.js"></script>
   <script src="/js/api.js"></script>
   <script>
     Auth.requireAdmin();
+
     let currentPage = 1;
+    let searchContent = '';
+    let searchStatus = '';
+
+    function search() {
+      searchContent = document.getElementById('searchContent').value.trim();
+      searchStatus = document.getElementById('searchStatus').value;
+      load(1);
+    }
+
+    function resetSearch() {
+      document.getElementById('searchContent').value = '';
+      document.getElementById('searchStatus').value = '';
+      searchContent = ''; searchStatus = '';
+      load(1);
+    }
 
     async function load(page) {
       currentPage = page || 1;
       try {
-        const result = await api.getAllComments(currentPage);
+        const isBlocked = searchStatus !== '' ? parseInt(searchStatus) : undefined;
+        const result = await api.getAllComments(currentPage, searchContent, isBlocked);
         const tbody = document.getElementById('commentTable');
         if (!result.records || result.records.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">暂无评论</td></tr>';
@@ -54,30 +90,54 @@
               <td>${c.isBlocked ? '' : `<button class="btn-block" onclick="blockComment(${c.id})">屏蔽</button>`}</td>
             </tr>`).join('');
         }
-        // 简单分页
-        const pag = document.getElementById('pagination');
-        pag.innerHTML = '';
-        if (result.pages > 1) {
-          if (currentPage > 1) {
-            const btn = document.createElement('button');
-            btn.textContent = '上一页';
-            btn.style = 'padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#fff';
-            btn.onclick = () => load(currentPage - 1);
-            pag.appendChild(btn);
-          }
-          const span = document.createElement('span');
-          span.textContent = `第 ${currentPage}/${result.pages} 页`;
-          span.style = 'color:#64748b;font-size:13px;line-height:2';
-          pag.appendChild(span);
-          if (currentPage < result.pages) {
-            const btn = document.createElement('button');
-            btn.textContent = '下一页';
-            btn.style = 'padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#fff';
-            btn.onclick = () => load(currentPage + 1);
-            pag.appendChild(btn);
-          }
-        }
+        renderPagination(result.total, result.size);
       } catch(e) { showToast('加载失败', 'error'); }
+    }
+
+    function renderPagination(total, size) {
+      const totalPages = Math.ceil(total / size);
+      const pg = document.getElementById('pagination');
+      pg.innerHTML = '';
+      if (totalPages <= 1) return;
+
+      const delta = 2;
+      const pages = new Set([1, totalPages]);
+      for (let i = currentPage - delta; i <= currentPage + delta; i++) {
+        if (i >= 1 && i <= totalPages) pages.add(i);
+      }
+      const sorted = [...pages].sort((a, b) => a - b);
+
+      const addBtn = (label, page, active, disabled) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `padding:6px 12px;border-radius:6px;cursor:${disabled?'default':'pointer'};font-size:13px;min-width:36px;border:1px solid ${active?'#38bdf8':'#334155'};background:${active?'#38bdf8':'#1e293b'};color:${active?'#0f172a':disabled?'#475569':'#e2e8f0'};`;
+        if (page && !disabled) btn.onclick = () => load(page);
+        else btn.disabled = true;
+        pg.appendChild(btn);
+      };
+
+      addBtn('«', 1, false, currentPage === 1);
+      addBtn('‹', currentPage - 1, false, currentPage === 1);
+
+      let prev = 0;
+      for (const p of sorted) {
+        if (p - prev > 1) {
+          const span = document.createElement('span');
+          span.textContent = '…';
+          span.style.cssText = 'color:#475569;padding:0 4px;line-height:2';
+          pg.appendChild(span);
+        }
+        addBtn(p, p, p === currentPage, false);
+        prev = p;
+      }
+
+      addBtn('›', currentPage + 1, false, currentPage === totalPages);
+      addBtn('»', totalPages, false, currentPage === totalPages);
+
+      const info = document.createElement('span');
+      info.textContent = `${currentPage}/${totalPages} 页，共 ${total} 条`;
+      info.style.cssText = 'color:#64748b;font-size:12px;margin-left:8px;white-space:nowrap';
+      pg.appendChild(info);
     }
 
     async function blockComment(id) {

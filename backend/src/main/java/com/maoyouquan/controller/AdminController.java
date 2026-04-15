@@ -31,9 +31,17 @@ public class AdminController {
 
     @GetMapping("/cats/pending")
     public R<?> pendingCats(@RequestParam(defaultValue = "1") int page,
-                             @RequestParam(defaultValue = "10") int size) {
-        return R.ok(catMapper.selectPage(new Page<>(page, size),
-                new QueryWrapper<Cat>().eq("status", "PENDING").orderByAsc("created_at")));
+                             @RequestParam(defaultValue = "10") int size,
+                             @RequestParam(defaultValue = "PENDING") String status,
+                             @RequestParam(required = false) String name,
+                             @RequestParam(required = false) String breed,
+                             @RequestParam(required = false) String gender) {
+        QueryWrapper<Cat> wrapper = new QueryWrapper<Cat>().orderByAsc("created_at");
+        if (status != null && !status.isBlank()) wrapper.eq("status", status);
+        if (name != null && !name.isBlank()) wrapper.like("name", name);
+        if (breed != null && !breed.isBlank()) wrapper.eq("breed", breed);
+        if (gender != null && !gender.isBlank()) wrapper.eq("gender", gender);
+        return R.ok(catMapper.selectPage(new Page<>(page, size), wrapper));
     }
 
     @PutMapping("/cats/{id}/status")
@@ -50,6 +58,14 @@ public class AdminController {
     public R<?> blockComment(@PathVariable Long id) {
         commentService.blockComment(id);
         return R.ok();
+    }
+
+    @GetMapping("/news")
+    public R<?> listNews(@RequestParam(defaultValue = "1") int page,
+                          @RequestParam(defaultValue = "10") int size,
+                          @RequestParam(required = false) String title,
+                          @RequestParam(required = false) String category) {
+        return R.ok(newsService.adminList(page, size, title, category));
     }
 
     @PostMapping("/news")
@@ -74,17 +90,25 @@ public class AdminController {
 
     @GetMapping("/comments")
     public R<?> allComments(@RequestParam(defaultValue = "1") int page,
-                             @RequestParam(defaultValue = "20") int size) {
-        Page<Comment> result = commentMapper.selectPage(new Page<>(page, size),
-                new QueryWrapper<Comment>().orderByDesc("created_at"));
+                             @RequestParam(defaultValue = "20") int size,
+                             @RequestParam(required = false) String content,
+                             @RequestParam(required = false) Integer isBlocked) {
+        QueryWrapper<Comment> wrapper = new QueryWrapper<Comment>().orderByDesc("created_at");
+        if (content != null && !content.isBlank()) wrapper.like("content", content);
+        if (isBlocked != null) wrapper.eq("is_blocked", isBlocked);
+        Page<Comment> result = commentMapper.selectPage(new Page<>(page, size), wrapper);
         return R.ok(result);
     }
 
     @GetMapping("/users")
     public R<?> allUsers(@RequestParam(defaultValue = "1") int page,
-                          @RequestParam(defaultValue = "20") int size) {
-        Page<User> result = userMapper.selectPage(new Page<>(page, size),
-                new QueryWrapper<User>().orderByAsc("created_at"));
+                          @RequestParam(defaultValue = "20") int size,
+                          @RequestParam(required = false) Long id,
+                          @RequestParam(required = false) String username) {
+        QueryWrapper<User> wrapper = new QueryWrapper<User>().orderByAsc("created_at");
+        if (id != null) wrapper.eq("id", id);
+        if (username != null && !username.isBlank()) wrapper.like("username", username);
+        Page<User> result = userMapper.selectPage(new Page<>(page, size), wrapper);
         result.getRecords().forEach(u -> u.setPasswordHash(null));
         return R.ok(result);
     }

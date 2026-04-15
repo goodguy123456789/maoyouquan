@@ -20,6 +20,13 @@ public class NewsService {
         return newsMapper.selectPage(new Page<>(page, size), qw);
     }
 
+    public Page<News> adminList(int page, int size, String title, String category) {
+        QueryWrapper<News> qw = new QueryWrapper<News>().orderByDesc("created_at");
+        if (StringUtils.hasText(title)) qw.like("title", title);
+        if (StringUtils.hasText(category)) qw.eq("category", category);
+        return newsMapper.selectPage(new Page<>(page, size), qw);
+    }
+
     public News getById(Long id) {
         News news = newsMapper.selectById(id);
         if (news == null) throw new RuntimeException("新闻不存在");

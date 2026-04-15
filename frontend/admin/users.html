@@ -24,6 +24,12 @@
       <h1>👥 用户管理</h1>
       <div class="admin-user" id="adminUser"></div>
     </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+      <input type="number" id="searchId" placeholder="按ID查询" min="1" style="width:130px;padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0">
+      <input type="text" id="searchUsername" placeholder="用户名模糊查询" style="width:180px;padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0">
+      <button class="btn-approve" onclick="search()" style="padding:6px 16px">查询</button>
+      <button class="btn-reject" onclick="reset()" style="padding:6px 16px">重置</button>
+    </div>
     <table class="admin-table">
       <thead>
         <tr>
@@ -41,11 +47,27 @@
     document.getElementById('adminUser').textContent = 'Hi, ' + (Auth.getUser()?.nickname || 'Admin');
 
     let currentPage = 1;
+    let searchId = null;
+    let searchUsername = '';
+
+    function search() {
+      searchId = document.getElementById('searchId').value ? parseInt(document.getElementById('searchId').value) : null;
+      searchUsername = document.getElementById('searchUsername').value.trim();
+      load(1);
+    }
+
+    function reset() {
+      document.getElementById('searchId').value = '';
+      document.getElementById('searchUsername').value = '';
+      searchId = null;
+      searchUsername = '';
+      load(1);
+    }
 
     async function load(page) {
       currentPage = page || 1;
       try {
-        const result = await api.getUsers(currentPage);
+        const result = await api.getUsers(currentPage, searchId, searchUsername);
         const tbody = document.getElementById('userTable');
         if (!result.records || result.records.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:24px">暂无用户</td></tr>';
@@ -82,13 +104,33 @@
       const totalPages = Math.ceil(total / size);
       const pg = document.getElementById('pagination');
       pg.innerHTML = '';
-      for (let i = 1; i <= totalPages; i++) {
+      if (totalPages <= 1) return;
+
+      // 计算要显示的页码：当前页前后各2页
+      const delta = 2;
+      const pages = new Set();
+      pages.add(1);
+      pages.add(totalPages);
+      for (let i = currentPage - delta; i <= currentPage + delta; i++) {
+        if (i >= 1 && i <= totalPages) pages.add(i);
+      }
+      const sorted = [...pages].sort((a, b) => a - b);
+
+      const addBtn = (label, page, active) => {
         const btn = document.createElement('button');
-        btn.textContent = i;
-        btn.className = i === currentPage ? 'btn-approve' : 'btn-reject';
+        btn.textContent = label;
+        btn.className = active ? 'btn-approve' : 'btn-reject';
         btn.style.minWidth = '36px';
-        btn.onclick = () => load(i);
+        if (page) btn.onclick = () => load(page);
+        else btn.disabled = true;
         pg.appendChild(btn);
+      };
+
+      let prev = 0;
+      for (const p of sorted) {
+        if (p - prev > 1) addBtn('...', null, false); // 插入省略号
+        addBtn(p, p, p === currentPage);
+        prev = p;
       }
     }
 
